@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a1a">
+<title>Compass</title>
+<style>
+  :root {
+    --bg: #0a0a1a;
+    --surface: #14142a;
+    --text: #e0e0f0;
+    --accent: #ff4444;
+    --accent2: #4488ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #1a1a3e 0%, #0a0a1a 70%);
+  }
+
+  /* Compass */
+  .compass-container {
+    position: relative;
+    width: min(80vw, 80vh, 320px);
+    height: min(80vw, 80vh, 320px);
+  }
+  .compass-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #1e1e3a, #0d0d22);
+    box-shadow: 0 0 40px rgba(68, 68, 255, 0.12),
+                inset 0 0 30px rgba(0,0,0,0.5),
+                0 8px 32px rgba(0,0,0,0.6);
+    border: 3px solid #2a2a4a;
+  }
+  .compass-ring {
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.06);
+    transition: transform 0.15s ease-out;
+  }
+
+  /* Ticks: bottom edge = compass center, rotate around that */
+  .tick, .label {
+    position: absolute;
+    left: 50%;
+    bottom: 50%;
+    transform-origin: center bottom;
+  }
+  .tick-major {
+    width: 2px;
+    height: 42%;
+    margin-left: -1px;
+    background: rgba(255,255,255,0.45);
+  }
+  .tick-minor {
+    width: 1px;
+    height: 44%;
+    margin-left: -0.5px;
+    background: rgba(255,255,255,0.12);
+  }
+
+  /* Labels: bottom = center, height = distance from center to label position */
+  .label {
+    width: 30px;
+    margin-left: -15px;
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+    line-height: 1;
+    padding-top: 2px;
+  }
+  .label-n { color: var(--accent); }
+  .label-s { color: var(--accent2); }
+  .label-e, .label-w { color: rgba(255,255,255,0.7); }
+  .label-inter { color: rgba(255,255,255,0.55); font-size: 13px; }
+
+  /* Needle - stationary, points north */
+  .needle {
+    position: absolute;
+    top: 16%;
+    left: 50%;
+    width: 4px;
+    height: 34%;
+    margin-left: -2px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .needle-north {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 28px;
+    height: 34px;
+    margin-left: -14px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 0% 100%, 50% 75%, 100% 100%);
+    filter: drop-shadow(0 0 8px rgba(255,68,68,0.5));
+  }
+  .needle-south {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 28px;
+    height: 34px;
+    margin-left: -14px;
+    background: #777;
+    clip-path: polygon(50% 100%, 0% 0%, 50% 25%, 100% 0%);
+  }
+  .needle-dot {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 12px; height: 12px;
+    margin: -6px 0 0 -6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent), 0 0 18px rgba(255,68,68,0.25);
+  }
+
+  /* Info */
+  .info {
+    margin-top: 24px;
+    text-align: center;
+  }
+  .heading-deg {
+    font-size: 54px;
+    font-weight: 300;
+    letter-spacing: -2px;
+    line-height: 1;
+    color: #fff;
+  }
+  .heading-deg sup {
+    font-size: 22px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.45);
+  }
+  .heading-dir {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 2px;
+    letter-spacing: 2px;
+  }
+  .coords {
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    margin-top: 6px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  /* Status bar */
+  .status-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .status-dot.on { background: #44ff44; box-shadow: 0 0 5px rgba(68,255,68,0.4); }
+  .status-dot.off { background: #ff4444; box-shadow: 0 0 5px rgba(255,68,68,0.4); }
+
+  /* Permission overlay */
+  .perm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .perm-card {
+    background: var(--surface);
+    border: 1px solid #2a2a4a;
+    border-radius: 18px;
+    padding: 32px 24px;
+    text-align: center;
+    max-width: 300px;
+    margin: 20px;
+  }
+  .perm-card h3 { margin-bottom: 8px; font-size: 19px; }
+  .perm-card p { color: rgba(255,255,255,0.55); font-size: 14px; margin-bottom: 22px; line-height: 1.5; }
+  .perm-card button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 13px 36px;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .perm-card button:active { background: #cc3333; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="perm-overlay hidden" id="permOverlay">
+  <div class="perm-card">
+    <h3>🧭 Enable Compass</h3>
+    <p>Allow access to your device's compass sensor to see your heading. Data never leaves your device.</p>
+    <button onclick="requestPermission()">Enable</button>
+  </div>
+</div>
+
+<div class="compass-container">
+  <div class="compass-face"></div>
+  <div class="compass-ring" id="ring"></div>
+  <div class="needle">
+    <div class="needle-north"></div>
+    <div class="needle-south"></div>
+  </div>
+  <div class="needle-dot"></div>
+</div>
+
+<div class="info">
+  <div class="heading-deg"><span id="degVal">--</span><sup>&deg;</sup></div>
+  <div class="heading-dir" id="dirVal">--</div>
+  <div class="coords">
+    <span id="latVal">--</span>
+    <span id="lngVal">--</span>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot off" id="statusDot"></div>
+  <span id="statusMsg">Waiting for sensors…</span>
+</div>
+
+<script>
+  const ring = document.getElementById('ring');
+  const degEl = document.getElementById('degVal');
+  const dirEl = document.getElementById('dirVal');
+  const latEl = document.getElementById('latVal');
+  const lngEl = document.getElementById('lngVal');
+  const dot = document.getElementById('statusDot');
+  const msg = document.getElementById('statusMsg');
+  const overlay = document.getElementById('permOverlay');
+
+  // ---- Build ticks ----
+  for (let deg = 0; deg < 360; deg++) {
+    if (deg % 3 !== 0) continue;
+    const el = document.createElement('div');
+    if (deg % 15 === 0) {
+      el.className = 'tick tick-major';
+    } else {
+      el.className = 'tick tick-minor';
+    }
+    el.style.transform = `rotate(${deg}deg)`;
+    ring.appendChild(el);
+  }
+
+  // ---- Build labels ----
+  const labels = [
+    { angle: 0,   text: 'N', cls: 'label-n' },
+    { angle: 45,  text: 'NE', cls: 'label-inter' },
+    { angle: 90,  text: 'E', cls: 'label-e' },
+    { angle: 135, text: 'SE', cls: 'label-inter' },
+    { angle: 180, text: 'S', cls: 'label-s' },
+    { angle: 225, text: 'SW', cls: 'label-inter' },
+    { angle: 270, text: 'W', cls: 'label-w' },
+    { angle: 315, text: 'NW', cls: 'label-inter' },
+  ];
+
+  labels.forEach(({ angle, text, cls }) => {
+    const el = document.createElement('div');
+    el.className = `label ${cls}`;
+    el.textContent = text;
+    el.style.height = '38%';
+    el.style.transform = `rotate(${angle}deg)`;
+    ring.appendChild(el);
+  });
+
+  // ---- Compass logic ----
+  const CARDINALS = ['N','NNE','NE','ENE','E','ESE','SE','SSE',
+                      'S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
+  function toCardinal(h) { return CARDINALS[Math.round(h / 22.5) % 16]; }
+
+  function setHeading(h) {
+    const r = Math.round(h);
+    ring.style.transform = `rotate(${-r}deg)`;
+    degEl.textContent = r;
+    dirEl.textContent = toCardinal(r);
+  }
+
+  let active = false;
+
+  function setStatus(on, text) {
+    active = on || active;
+    dot.className = on ? 'status-dot on' : 'status-dot off';
+    msg.textContent = text;
+    overlay.classList.add('hidden');
+  }
+
+  // ---- METHOD 1: Generic Sensor API (AbsoluteOrientationSensor) ----
+  // Most reliable on modern Android Chrome (needs HTTPS or localhost)
+  async function tryAbsoluteOrientationSensor() {
+    if (typeof AbsoluteOrientationSensor !== 'function') {
+      msg.textContent = 'Sensor API not available, trying fallback…';
+      return false;
+    }
+    try {
+      // Request permission via Generic Sensor permissions (Android Chrome)
+      const perm = await navigator.permissions.query({ name: 'accelerometer' });
+      if (perm.state === 'denied') {
+        msg.textContent = 'Sensor permission denied. Check site settings.';
+        return false;
+      }
+      const sensor = new AbsoluteOrientationSensor({ frequency: 30 });
+      sensor.addEventListener('reading', () => {
+        // Quaternion to heading (yaw = rotation around Z)
+        const q = sensor.quaternion;
+        const heading = Math.atan2(
+          2 * q[0] * q[1] + 2 * q[2] * q[3],
+          1 - 2 * q[1] * q[1] - 2 * q[2] * q[2]
+        ) * 180 / Math.PI;
+        const h = ((heading + 360) % 360);
+        setStatus(true, 'Compass active (Sensor API)');
+        setHeading(h);
+      });
+      sensor.addEventListener('error', () => {
+        msg.textContent = 'Sensor error, trying fallback…';
+      });
+      sensor.start();
+      return true;
+    } catch (e) {
+      msg.textContent = 'Sensor API failed: ' + (e.message || 'unknown').substring(0, 30);
+      return false;
+    }
+  }
+
+  // ---- METHOD 2: deviceorientationabsolute event (Android Chrome) ----
+  function onAbsOrientation(e) {
+    if (e.alpha != null && !isNaN(e.alpha)) {
+      setStatus(true, 'Compass active');
+      setHeading(360 - e.alpha);
+    }
+  }
+
+  // ---- METHOD 3: deviceorientation event (iOS + fallback) ----
+  function onOrientation(e) {
+    let heading = null;
+    // iOS Safari: webkitCompassHeading
+    if (e.webkitCompassHeading != null && !isNaN(e.webkitCompassHeading)) {
+      heading = e.webkitCompassHeading;
+    }
+    // Android fallback: alpha from deviceorientation
+    else if (e.alpha != null && !isNaN(e.alpha) && Math.abs(e.alpha) > 0.01) {
+      heading = 360 - e.alpha;
+    }
+    if (heading != null) {
+      setStatus(true, 'Compass active');
+      setHeading(heading);
+    }
+  }
+
+  // ---- Permission flow ----
+  window.requestPermission = async function() {
+    // iOS 13+: explicit permission required
+    if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
+      try {
+        const state = await DeviceOrientationEvent.requestPermission();
+        if (state === 'granted') {
+          overlay.classList.add('hidden');
+          msg.textContent = 'Permission granted — calibrating…';
+        } else {
+          msg.textContent = 'Permission denied. Check Settings > Safari > Motion.';
+        }
+      } catch (e) {
+        overlay.classList.add('hidden');
+        msg.textContent = 'Permission prompt dismissed. Tap Enable to retry.';
+      }
+    }
+    // Android: request via Permissions API
+    else if (navigator.permissions) {
+      try {
+        const perm = await navigator.permissions.query({ name: 'accelerometer' });
+        if (perm.state === 'granted') {
+          overlay.classList.add('hidden');
+          msg.textContent = 'Sensors ready — point your phone north';
+        } else if (perm.state === 'prompt') {
+          // Permissions API doesn't trigger a prompt for sensors;
+          // user interaction (tap) is the trigger on Android
+          overlay.classList.add('hidden');
+          msg.textContent = 'Sensors should now activate — turn your phone';
+        } else {
+          msg.textContent = 'Sensors blocked. Open Chrome Settings > Site Settings > Sensors.';
+        }
+        perm.addEventListener('change', () => {
+          if (perm.state === 'granted') {
+            // Retry sensor startup
+            tryAbsoluteOrientationSensor();
+          }
+        });
+      } catch (e) {
+        overlay.classList.add('hidden');
+        msg.textContent = 'Sensors should activate — point your phone north';
+      }
+    } else {
+      overlay.classList.add('hidden');
+      msg.textContent = 'Tap detected — sensors should activate now';
+    }
+  };
+
+  // ---- Init sequence ----
+  async function init() {
+    // Show the Enable button on all platforms (user tap helps trigger sensors on Android)
+    overlay.classList.remove('hidden');
+
+    // Pre-register event listeners (they fire once user taps Enable)
+    if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', onAbsOrientation, true);
+    }
+    window.addEventListener('deviceorientation', onOrientation, true);
+
+    // Try the most reliable API first (may fail silently, events will catch it)
+    tryAbsoluteOrientationSensor();
+
+    // If nothing fires after 5 seconds, remind user
+    setTimeout(() => {
+      if (!active) {
+        msg.textContent = 'No sensor data — tap Enable and turn your phone';
+      }
+    }, 5000);
+  }
+
+  init();
+
+  // ---- Geolocation ----
+  if ('geolocation' in navigator) {
+    navigator.geolocation.watchPosition(pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      latEl.textContent = `${lat.toFixed(5)}° N`;
+      lngEl.textContent = `${lng.toFixed(5)}° ${lng >= 0 ? 'E' : 'W'}`;
+    }, () => {}, { enableHighAccuracy: false, maximumAge: 30000 });
+  }
+
+  // ---- Service Worker (PWA offline) ----
+  if ('serviceWorker' in navigator) {
+    const swBlob = new Blob([`
+      const V='c2';
+      self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(['./'])));self.skipWaiting()});
+      self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
+    `], {type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+  }
+</script>
+</body>
+</html>
