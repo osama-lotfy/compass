@@ -311,7 +311,7 @@
 
   // Smoothing: low-pass filter to reduce jitter
   let smoothHeading = null;
-  const SMOOTH = 0.15; // lower = smoother but slower (0.1–0.3 is good)
+  const SMOOTH = 0.08; // lower = smoother but slower
 
   function setHeading(raw) {
     if (smoothHeading === null) smoothHeading = raw;
