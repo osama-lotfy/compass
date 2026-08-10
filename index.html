@@ -168,6 +168,39 @@
     justify-content: center;
   }
 
+  /* Smoothing slider */
+  .smooth-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .smooth-row:active, .smooth-row:hover { opacity: 1; }
+  .smooth-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: right;
+  }
+  .smooth-slider {
+    -webkit-appearance: none;
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+  }
+  .smooth-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
   /* Status bar */
   .status-bar {
     position: fixed;
@@ -252,6 +285,10 @@
     <span id="latVal">--</span>
     <span id="lngVal">--</span>
   </div>
+  <div class="smooth-row">
+    <span class="smooth-label" id="smoothLabel">Steady</span>
+    <input type="range" class="smooth-slider" id="smoothSlider" min="2" max="50" value="4">
+  </div>
 </div>
 
 <div class="status-bar">
@@ -309,9 +346,19 @@
 
   function toCardinal(h) { return CARDINALS[Math.round(h / 22.5) % 16]; }
 
-  // Smoothing: low-pass filter to reduce jitter
+  // Smoothing: low-pass filter, adjustable via slider
   let smoothHeading = null;
-  const SMOOTH = 0.08; // lower = smoother but slower
+  let smoothFactor = 0.04; // 0.02=butter, 0.50=nearly raw
+
+  const smoothSlider = document.getElementById('smoothSlider');
+  const smoothLabel = document.getElementById('smoothLabel');
+
+  smoothSlider.addEventListener('input', () => {
+    smoothFactor = smoothSlider.value / 100;
+    const labels = ['Steady','Smooth','Moderate','Crisp','Fast','Raw'];
+    const idx = Math.round((smoothFactor - 0.02) / 0.10);
+    smoothLabel.textContent = labels[Math.min(idx, 5)] || 'Smooth';
+  });
 
   function setHeading(raw) {
     if (smoothHeading === null) smoothHeading = raw;
@@ -319,7 +366,7 @@
     let diff = raw - smoothHeading;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
-    smoothHeading += diff * SMOOTH;
+    smoothHeading += diff * smoothFactor;
     if (smoothHeading < 0) smoothHeading += 360;
     if (smoothHeading >= 360) smoothHeading -= 360;
 
